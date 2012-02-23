@@ -15,14 +15,14 @@ var Scheduler = function() {
  *
  * @param {Process} proc The process to be scheduled
  */
-Scheduler.addProcess = function(proc) {
+Scheduler.prototype.addProcess = function(proc) {
     
 }
 
 /**
  * Called once per unit time.
  */
-Scheduler.tick = function() {
+Scheduler.prototype.tick = function() {
     
 }
 
@@ -30,6 +30,6 @@ Scheduler.tick = function() {
  * Returns the current process.
  * @return {Process} The currently executing process, or null if none.
  */
-Scheduler.getProcess = function() {
+Scheduler.prototype.getProcess = function() {
     return this.currentProcess;
 }

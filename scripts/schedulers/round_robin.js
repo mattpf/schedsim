@@ -7,7 +7,7 @@ var RoundRobinScheduler = function(quantum) {
     this.queuePointer = null;
 };
 
-RoundRobinScheduler.prototype = Scheduler;
+RoundRobinScheduler.prototype = new Scheduler();
 
 RoundRobinScheduler.prototype.addProcess = function(proc) {
     if($.inArray(proc, this.queue) != -1)
