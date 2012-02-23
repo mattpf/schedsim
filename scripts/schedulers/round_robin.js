@@ -3,7 +3,7 @@
 var RoundRobinScheduler = function(quantum) {
     this.queue = [];
     this.currentProcessTicks = 0;
-    this.quantum = quantum
+    this.quantum = quantum;
     this.queuePointer = null;
 };
 
@@ -21,12 +21,17 @@ RoundRobinScheduler.prototype.addProcess = function(proc) {
 }
 
 RoundRobinScheduler.prototype.tick = function() {
+    if(this.isComplete()) {
+        return;
+    }
     if(this.currentProcess && this.currentProcess.isComplete()) {
         console.log("Process completed.");
         this.removeProcess(this.currentProcess);
     } else {
         if(++this.currentProcessTicks >= this.quantum) {
             this.runNextProcess();
+        } else {
+            this.currentProcess.tick();
         }
     }
 }
@@ -54,5 +59,11 @@ RoundRobinScheduler.prototype.runNextProcess = function() {
     this.currentProcessTicks = 0;
     if(this.queue[this.queuePointer]) {
         this.currentProcess = this.queue[this.queuePointer];
+    } else {
+        this.currentProcess = null;
     }
+}
+
+RoundRobinScheduler.prototype.isComplete = function() {
+    return !this.queue.length;
 }
