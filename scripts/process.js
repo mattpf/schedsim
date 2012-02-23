@@ -25,3 +25,12 @@ Process.prototype.tick = function() {
 Process.prototype.isComplete = function() {
     return (this.passed >= this.needed)
 }
+
+/**
+ * Returns whether the process is blocked.
+ * @return {bool} True is blocked, false otherwise.
+ */
+Process.prototype.isBlocked = function() {
+    // This isn't implemented yet.
+    return false;
+}
