@@ -58,6 +58,7 @@ ResourceManager = (function() {
     return {
         prompt: function() {
             $('#modal-resource-name').val('');
+            $('#custom-resource-message').html('');
             $('#custom-resource-modal').modal({'backdrop': 'static'});
         },
         resources: function() {
