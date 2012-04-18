@@ -1,0 +1,77 @@
+#resource-list, #simulation-resource-boxes ul, #modal-process-needs {
+    list-style-type: none;
+    margin-left: 0px;
+}
+
+#resource-list li {
+    border-bottom: 1px solid #999;
+}
+
+#resource-list li:last-child {
+    border-bottom: none;
+}
+
+#resource-list label {
+    width: 70px;
+}
+
+#resource-list .controls {
+    margin-left: 90px;
+}
+
+#resource-list h4 {
+    display: inline-block;
+    padding-bottom: 5px;
+}
+
+#add_sched {
+    margin-top: 5px;
+}
+
+#processes td {
+    text-align: center;
+}
+
+.state-box {
+    float: left;
+    width: 100px;
+    border: 2px solid black;
+    margin: 5px;
+    text-align: center;
+    border-radius: 3px;
+}
+
+.state-box.process {
+    height: 30px;
+    line-height: 30px;
+    font-weight: bold;
+}
+
+.state-box.process.terminated {
+    text-decoration: line-through;
+}
+
+.state-box.resource {
+
+}
+
+/* So that the Resources line doesn't end up floating */
+#simulation-state h3 {
+    clear: both;
+}
+
+#simulation-resource-boxes li.active {
+    font-style: italic;
+}
+
+#simulation-resource-boxes li.blocked {
+    font-style: line-through;
+}
+
+#simulation-resource-boxes ul {
+    margin-bottom: 0px;
+}
+
+#simulation-resource-boxes h4 {
+    border-bottom: 2px solid black;
+}

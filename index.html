@@ -1,13 +1,186 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>Scheduling simulator</title>
-        <script type="text/javascript" src="lib/ext-all.js"></script>
-        <script type="text/javascript" src="app.js"></script>
-        <link rel="stylesheet" type="text/css" href="lib/resources/css/ext-all.css">
+        <title>Scheduling Simulator</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <!-- HTML5 shim, for IE6-8 support of HTML elements -->
+        <!--[if lt IE 9]>
+            <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+        <![endif]-->
+        <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
+        <link href="bootstrap/css/bootstrap-responsive.css" rel="stylesheet">
+        <link href="css/schedsim.css" rel="stylesheet">
     </head>
+
     <body>
 
+        <div class="navbar navbar-fixed-top">
+            <div class="navbar-inner">
+                <div class="container">
+                    <a class="brand" href="#">Resource Simulator</a>
+                </div>
+            </div>
+        </div>
+        <!-- fix mysterious 60 pixels that only appear when smaller than desktop size -->
+        <div class="visible-desktop" style="height: 60px;"></div>
+
+        <div class="container">
+
+            <div class="row">
+                <div class="span8">
+                    <h2>Simulation – <span id="time-passed">idle</span></h2>
+                    <div id="simulation-state" class="well" style="height: 100%;">
+                        <h3>Processes</h3>
+                        <div id="simulation-process-boxes">
+                            <p>No processes yet.</p>
+                        </div>
+                        <h3>Resources</h3>
+                        <div id="simulation-resource-boxes">
+                            <p>No resources yet.</p>
+                        </div>
+                        <div style="clear: both;"></div>
+                    </div>
+                </div>
+                <div class="span4">
+                    <h2>Settings</h2>
+                    <div class="well">
+                        <h3>Resources</h3>
+                        <ul id="resource-list">
+                        </ul>
+                        <div class="dropdown btn-add">
+                            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">Add <b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li><a href="#" id="add-cpu">CPU</a></li>
+                                <li class="divider"></li>
+                                <li><a href="#" id="add-custom-resource">Custom</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="well">
+                        <h3>Processes</h3>
+                        <ul id="process-list">
+                        </ul>
+                        <div class="dropdown btn-add">
+                            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">Add <b class="caret"></b></a>
+                            <ul class="dropdown-menu">
+                                <li class="divider"></li>
+                                <li><a href="#" id="add-custom-process">Custom</a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="well">
+                        <div id="stopped-buttons">
+                            <a href="#" class="btn btn-primary" id="start-simulation">Start Simulation</a>
+                        </div>
+                        <div id="paused-buttons" style="display: none;">
+                            <a href="#" class="btn" id="step-simulation">Step Forward</a>
+                            <a href="#" class="btn" id="back-simulation">Step Back</a>
+                            <a href="#" class="btn btn-danger" id="stop-simulation">Stop Simulation</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="row">
+                <div class="span12" style="text-align: center; color: lightgray;">
+                    <p>jan horjus • matthew powers-freeling</p>
+                </div>
+            </div>
+
+        </div> <!-- /container -->
+
+
+        <!-- Modal dialog for creating new custom resources -->
+        <div class="modal fade" id="custom-resource-modal">
+            <div class="modal-header">
+                <a class="close" data-dismiss="modal">x</a>
+                <h3>Custom Resource</h3>
+            </div>
+            <div class="modal-body">
+                <div id="custom-resource-message"></div>
+                <form class="form-horizontal">
+                    <fieldset>
+                        <div class="control-group">
+                            <label class="control-label" for="modal-resource-name">Resource Name</label>
+                            <div class="controls">
+                                <input type="text" class="input-large" placeholder="e.g. CPU, RAM, etc." id="modal-resource-name">
+                                <p class="help-block">The name/type of the resource; used when other resources refer to it.</p>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+                <a href="#" class="btn btn-primary" id="modal-resource-save">Save</a>
+            </div>
+        </div>
+
+        <!-- Modal dialog for creating a process -->
+        <div class="modal fade" id="custom-process-modal">
+            <div class="modal-header">
+                <a class="close" data-dismiss="modal">x</a>
+                <h3>Process Settings</h3>
+            </div>
+            <div class="modal-body">
+                <div id="custom-process-message"></div>
+                <form class="form-horizontal">
+                    <fieldset>
+                        <div class="control-group">
+                            <label class="control-label" for="modal-process-name">Process Name</label>
+                            <div class="controls">
+                                <input type="text" class="input-large" placeholder="My Fancy Process" id="modal-process-name">
+                                <p class="help-block">A reference name for the process (optional)</p>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="modal-process-arrival">Arrival Time/label</label>
+                            <div class="controls">
+                                <div class="input-append">
+                                    <input type="text" class="input-small" size="5" value="0" id="modal-process-arrival"><span class="add-on">ms</span>
+                                </div>
+                                <p class="help-block">When the process arrives to be scheduled.</p>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+                <h4>Resources</h4>
+                <p>Specify resources needed by this process.</p>
+
+                <!-- Template used to fill in the modal-process-needs list. -->
+                <div id="modal-process-need-template" style="display: none;">
+                    <form class="form-inline">
+                    <fieldset>
+                        <select id="modal-process-need-list" class="need-resource span1"></select>
+                        <span class="input-append"><input type="text" class="input-small need-begin" size="5" placeholder="Start time"><span class="add-on">ms</span></span>
+                        <span class="input-append"><input type="text" class="input-small need-duration" size="5" placeholder="Duration"><span class="add-on">ms</span></span>
+                        <input type="text" class="input-small need-quantity" size="5" placeholder="Quantity">
+                        <a href="#" class="btn delete"><i class="icon-minus"></i></a>
+                    </fieldset>
+                    </form>
+                </div>
+
+                <ul id="modal-process-needs">
+                </ul>
+                <p><a href="#" class="btn" id="modal-process-add-need"><i class="icon-plus"></i></a></p>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+                <a href="#" class="btn btn-primary" id="modal-process-save">Save</a>
+            </div>
+        </div>
+
+        <!-- load the scripts -->
+        <script src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+        <script src="bootstrap/js/bootstrap.js"></script>
+        <script src="scripts/simulation.js"></script>
+        <script src="scripts/resource-manager.js"></script>
+        <script src="scripts/process-manager.js"></script>
+        <script src="scripts/simulation-manager.js"></script>
+        <script src="scripts/control.js"></script>
+        <script>
+            $('.has-tooltip').tooltip();
+        </script>
     </body>
 </html>
