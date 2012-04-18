@@ -45,8 +45,8 @@ ResourceManager = (function() {
             var resource = origin.attr('data-resource');
             if(resource) {
                 origin.remove();
-                $.each(resources, function(index, value) {
-                    if(value.name == resource) {
+                $.each(resources, function(index) {
+                    if(this.name == resource) {
                         resources.splice(index, 1);
                         return false;
                     }

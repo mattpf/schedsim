@@ -16,6 +16,20 @@ ProcessManager = (function() {
             $('#modal-process-needs').append('<li>' + $('#modal-process-need-template').html() + '</li>');
         });
 
+        $('#process-list').click(function(e) {
+            var origin = $(e.target).closest('a.close').closest('li');
+            var pid = parseInt(origin.attr('data-pid'));
+            if(pid || pid === 0) {
+                origin.remove();
+                $.each(processes, function(index) {
+                    if(this.pID == pid) {
+                        processes.splice(index, 1);
+                        return false;
+                    }
+                });
+            }
+        });
+
         $('#modal-process-save').click(function() {
             var name = $('#modal-process-name').val();
             if(name == "") name = undefined;
@@ -39,7 +53,8 @@ ProcessManager = (function() {
             processes[processes.length] = process;
 
 
-            $('#process-list').append('<li id="p'+process.pID+'"><strong>' + process.name + '</strong> <a href="#" class="close">&times</a>' + 
+            $('#process-list').append('<li data-pid="'+process.pID+'" id="p'+process.pID+'"><strong>' + process.name + 
+                '</strong> <a href="#" class="close">&times</a>' + 
                 '<div class="progress" style="display: none;"><div class="bar" style="width: 0%;"></div></div></li>')
 
             $('#custom-process-modal').modal('hide');
