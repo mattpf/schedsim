@@ -64,6 +64,9 @@ ResourceManager = (function() {
         resources: function() {
             return resources.slice();
         },
+        fixReferences: function(simulation) {
+            resources = simulation.resourceList.slice();
+        },
         addCPU: function() {
             if(!addResource(new Resource("CPU"))) {
                 alert("Cannot add a CPU; one is already present.");

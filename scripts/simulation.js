@@ -466,7 +466,33 @@ function Resource(name)
         return undefined;
     }  
 
-    
+    // Provide a custom renderer!
+    // Putting this here violates ~everything. Is that justifiable?
+    // ...probably not. "Not my design."
+    // colours, if provided, is a mapping from pid to background colour.
+    this.render = function(colours) {
+        // Default implementation: produce a list of the waiting queue, followed by a list of
+        // the block waiting queue?
+        console.log(this);
+        var html = '';
+        var allocations = this.currentAllocations() || [];
+        var state = {};
+        for(var ii in this.waitingQueue) {
+            state[this.waitingQueue[ii].pID] = 'waiting';
+        }
+        for(var ii in this.blockWaitList) {
+            state[this.blockWaitList[ii].pID] = 'blocked';
+        }
+        for(var ii in allocations) {
+            state[allocations[ii].pID] = 'active';
+        }
+        console.log(state);
+        for(var ii in state) {
+            if(!state.hasOwnProperty(ii)) continue;
+            html += '<li class="' + state[ii] + '" style="background-color:hsl(' +  colours[ii] + ', 75%, 75%)" data-pid="' + ii + '"></li>';
+        }
+        return html;
+    }
     
 // End of Class Resource
 }

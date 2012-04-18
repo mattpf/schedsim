@@ -23,6 +23,20 @@ SimulationManager = (function() {
                 $('#simulation-process-boxes > div[data-pid=' + this.pID + ']').addClass('terminated');
             }
         });
+
+        // Generate the collection of resources.
+        $('#simulation-resource-boxes').html('');
+        $.each(ResourceManager.resources(), function() {
+            var html = '<div data-resource="' + this.name + '" class="state-box resource"><h4>' + this.name + '</h4><ul>' + 
+                this.render(colours) + '</ul></div>';
+            $('#simulation-resource-boxes').append(html);
+        });
+
+        // Because rendering is done at the wrong level, the things we just rendered don't really have a clue what's going on.
+        // More specifically, they don't know their own names. We fill those in now.
+        $('#simulation-resource-boxes > div > ul > li').each(function() {
+            $(this).html(simulation.getProcess(parseInt($(this).attr('data-pid'))).name);
+        });
     }
 
     return {
@@ -75,6 +89,7 @@ SimulationManager = (function() {
             // Rolling back breaks our references! Which kinda sucks.
             // This fixes it.
             ProcessManager.fixReferences(simulation);
+            ResourceManager.fixReferences(simulation);
             
             updateState();
         }

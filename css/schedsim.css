@@ -1,4 +1,4 @@
-#resource-list {
+#resource-list, #simulation-resource-boxes ul, #modal-process-needs {
     list-style-type: none;
     margin-left: 0px;
 }
@@ -58,4 +58,20 @@
 /* So that the Resources line doesn't end up floating */
 #simulation-state h3 {
     clear: both;
+}
+
+#simulation-resource-boxes li.active {
+    font-style: italic;
+}
+
+#simulation-resource-boxes li.blocked {
+    font-style: line-through;
+}
+
+#simulation-resource-boxes ul {
+    margin-bottom: 0px;
+}
+
+#simulation-resource-boxes h4 {
+    border-bottom: 2px solid black;
 }
