@@ -1,11 +1,27 @@
 SimulationManager = (function() {
     var simluation = null;
+    var colours = {};
 
     function updateState() {
+        // Update the time display
         $('#time-passed').html(simulation.simulatorClock + "ms");
 
-        $.each(ProcessManager.processes(), function(index, value) {
-            $('#p' + value.pID).find('.bar').css('width', ((value.getRunDuration() / value.getTotalRunDuration()) * 100) + '%')
+        // Update the progress bars in the process list
+        $.each(ProcessManager.processes(), function() {
+            $('#p' + this.pID).find('.bar').css('width', ((this.getRunDuration() / this.getTotalRunDuration()) * 100) + '%')
+        });
+
+        // Generate the collection of processes. Each processes has a single colour value associated with it.
+        // We then stick it into hsl(n, 100%, 75%) for something that's hopefully aesthetically pleasing.
+        $('#simulation-process-boxes').html('');
+        $.each(ProcessManager.processes(), function() {
+            if(colours[this.pID] === undefined) {
+                colours[this.pID] = Math.random() * 360;
+            }
+            $('#simulation-process-boxes').append('<div data-pid="'+this.pID+'" class="state-box process" style="background-color: hsl('+colours[this.pID]+', 75%, 75%)">' + this.name + '</div>');
+            if(this.hasTerminated()) {
+                $('#simulation-process-boxes > div[data-pid=' + this.pID + ']').addClass('terminated');
+            }
         });
     }
 
@@ -24,11 +40,13 @@ SimulationManager = (function() {
             // Show the process progress bars
             $('.progress').show();
 
-            // Hide all the delete buttons.
+            // Hide all the add/delete buttons.
             $('.close').hide();
+            $('.btn-add').hide();
+
+            updateState();
         },
         stop: function() {
-            // I have no idea what I'm supposed to do with the other two paramaters...?
             simulation = null;
 
             // Swap out the buttons.
@@ -41,8 +59,9 @@ SimulationManager = (function() {
             // Hide all the process progress bars.
             $('.progress').hide();
 
-            // Show the delete buttons
+            // Show the add/delete buttons
             $('.close').show();
+            $('.btn-add').show();
         },
         step: function() {
             var nextUpdate = simulation.simNextEvent();
