@@ -78,7 +78,7 @@ function Request(pID, resName, duration, quantity)
 // Class Allocation
 // The mirror of a request - practically identical. It includes the process being allocated 
 // to as well as the specific resource, and the quantity and duration of the allocation.
-function Allocation(resName, pID, duration, quantity)
+function Allocation(resName, pID, duration, quantity, timeTillPreemption)
 {
     //Initial variables:
     if (typeof(resName) !== "string"){ print ("ERROR! Allocation resource is not string:" + resName); }
@@ -88,7 +88,13 @@ function Allocation(resName, pID, duration, quantity)
     if (typeof(duration) !== "number"){ print ("ERROR! Allocation duration is not number:" + duration); }
     this.duration = duration;  // not optional. 
     this.quantity = quantity  !== undefined ? quantity  : 1;//quantity default is 1.(some resources ignore quantity)
+    this.timeTillPreemption = timeTillPreemption !== undefined ? timeTillPreemption : MAX_INT; //defaults to no preemption.  
 
+    // Functions for convenience.
+    this.isPreemptive = function()
+    {
+        return this.timeTillPreemption < MAX_INT;
+    }
 //End of Class Allocation
 }
 
@@ -134,7 +140,7 @@ function Process(needList, arrivalTime, pID, name)
     }
     this.isFinished = function () { return this.progress >= this.getTotalRunDuration(); }
     this.hasTerminated = function() { return this.terminated; }  
-    
+
     // Resets the process to its initial state.
     this.reset = function() {
         this.progress = 0;
@@ -143,7 +149,8 @@ function Process(needList, arrivalTime, pID, name)
         this.firstProgressTime = 0;
         this.finishTime = 0;
     }
-
+    
+    
     // Returns a list of Request objects; these are the process's internal
     // needs both filtered and offset based on the current progress-time. 
     // * If allocList if given, return any needs still unmet by allocList or [] if none. 
@@ -373,7 +380,7 @@ function Resource(name, initialClock)
     this.name          = name; // The name is not optional. Every resource needs one.
     this.resourceClock = initialClock !== undefined ? initialClock : 0; // Clock can be given an optional initial value. Defaults to 0. 
     this.waitingQueue  = [];
-    
+        
     this.reset = function() {
         this.waitingQueue = [];
         this.resourceClock = initialClock;
@@ -491,25 +498,33 @@ function Resource(name, initialClock)
     // Return the time until the next forseeable scheduling event on this resource.
     this.timeTillNextEvent = function(activeProcList) //activeProcList is actual procs, not ID numbers. 
     {
-        // Return the minimum time being currently being allocated to a non-blocked process if any. Otherwise return MAX_INT.
+        // Return MAX_INT by default if no events found.
+        var retVal = MAX_INT;
+        // Check the minimum time being currently being allocated to a non-blocked process if any.
         var allocs = this.currentAllocations();
         if (allocs !== undefined && allocs.length > 0){
-            for(var ii in activeProcList){
-                for(var jj in allocs){
+            for(var jj in allocs){
+                // If the allocation is preemptive, it always has an event. 
+                if (retVal > allocs[jj].timeTillPreemption){
+                    print("DEBUG: Preemptive allocation defines event.");
+                    retVal = allocs[jj].timeTillPreemption;
+                } 
+                // If it's not preemptive, it only has an event if the process allocated to is not blocked.
+                for(var ii in activeProcList){
                     if (activeProcList[ii] === allocs[jj].pID){
-                        var retVal = allocs[jj].duration;
-                        //print("DEBUG:Resource "+this.name+" timeTillNextEvent returning "+ retVal +".")
-                        return retVal;
+                        if (retVal > allocs[jj].duration){
+                            retVal = allocs[jj].duration;
+                        }
                     }
                 }
             }
         }
-        //print("DEBUG:Resource "+this.name+" timeTillNextEvent returning MAX_INT.")
-        return MAX_INT;
+        //print("DEBUG:Resource "+this.name+" timeTillNextEvent returning "+ retVal +".");
+        return retVal;
     }
 
     // Provide a custom renderer!
-    // Putting this here violates ~everything. Is that justifiable?
+    // Is putting this here justifiable?
     this.render = function() {
         // Default implementation: produce a list of the waiting queue, followed by a list of
         // the block waiting queue?
@@ -820,11 +835,11 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         
         //12.) Check for deadlock - giveFinalAllocations returns special ID "BLOCKED" if it can't make progress. 
         // If all processes with resources are blocked, then we may be in a deadlock.  
-        if (!anyRelease && releaseDict["BLOCKED"] !== undefined && releaseDict["BLOCKED"].length === processesWithAllocations){
-            print("Simulator: No allocated process can make any progress!  Simulation ends in deadlock!!");
-            print("For now, return 0 to terminate simulation. When we have resources with preemption this will change.");
-            return 0;
-        }
+        //if (!anyRelease && releaseDict["BLOCKED"] !== undefined && releaseDict["BLOCKED"].length === processesWithAllocations){
+        //  print("Simulator: No allocated process can make any progress!  Simulation ends in deadlock!!");
+        //  print("For now, return 0 to terminate simulation. When we have resources with preemption this will change.");
+        //  return 0;
+        //}
 
         this.simulatorClock += nextEventTime; // The simulator-wide clock is incremented by the time-to-next-event.
         print("Simulator: Exit simNextEvent. time passed="+nextEventTime+" Clock="+this.simulatorClock+".");

@@ -50,7 +50,7 @@ function RoundRobinCPU(name, quantum, cores)
             }
         }
         
-
+        //Don't need to increment the resourceClock in a inherited class.  
     }
     
     this.currentAllocations = function()
@@ -61,8 +61,20 @@ function RoundRobinCPU(name, quantum, cores)
             // We return those allocations to the processes at the front of the queue. 
             // The length of each allocation is equal to the remaining quantum for the process or the time requested - whichever is smaller. 
             var quantumAlreadyUsed = this.quantumsUsed[this.waitingQueue[ii].pID] !== undefined ? this.quantumsUsed[this.waitingQueue[ii].pID] : 0;
-            var timeToAllocate = this.quantum - quantumAlreadyUsed < this.waitingQueue[ii].duration  ?  this.quantum - quantumAlreadyUsed : this.waitingQueue[ii].duration; 
-            retVal.push( new Allocation(this.name, this.waitingQueue[ii].pID, timeToAllocate, this.waitingQueue[ii].quantity) ); //TODO: Actually respect quantity! 
+            var timeTillPreemption = this.quantum - quantumAlreadyUsed
+            var timeToAllocate;
+            if (timeTillPreemption < this.waitingQueue[ii].duration){
+                // The "process runs out of quantum" case. 
+                timeToAllocate = timeTillPreemption;
+            } else {
+                // The "process doesn't need a whole quantum" case. 
+                timeToAllocate = this.waitingQueue[ii].duration;
+            }
+            retVal.push( new Allocation(this.name, 
+                    this.waitingQueue[ii].pID, 
+                    timeToAllocate, 
+                    this.waitingQueue[ii].quantity,  //TODO: Actually respect quantity! 
+                    timeTillPreemption) ); // This is a pre-emptive resource.  
             print("RRCPU \""+this.name+"\" allocating "+timeToAllocate+" cycles to P"+this.waitingQueue[ii].pID+".")
         }
     
