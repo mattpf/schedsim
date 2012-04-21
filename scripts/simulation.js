@@ -29,10 +29,7 @@ function cloneObject(obj)
 
 
 
-
-
-
-//**********Begin Data Classes: Need, Request, Allocation **********//
+//**********Begin Data Classes: Need, Request, Allocation, Event **********//
 
 // Class Need
 // We define a need as a resource needed (by a process) for a certain duration beginning at a certain starttime.
@@ -98,7 +95,28 @@ function Allocation(resName, pID, duration, quantity, timeTillPreemption)
 //End of Class Allocation
 }
 
-//**********End Data Classes: Need, Request, Allocation **********//
+
+// Class Event 
+// This class is used in the simulator to communicate the time till next event 
+// and the descriptions of past events in the simulator's history.
+function Event(timeTillEvent, eventString)
+{
+	this.setEvent = function(timeTillEvent,eventString)
+	{
+		//Initial variables:
+		this.timeTillEvent = timeTillEvent !== undefined ? timeTillEvent : MAX_INT;  // Defaults to MAX_INT
+		if (typeof(this.timeTillEvent) !== "number"){ print ("ERROR! Event timeTillEvent is not a number:" + this.timeTillEvent); }
+		
+		this.eventString   = eventString   !== undefined ? eventString   : "No Event."; // Defaults to "No Event". 
+		if (typeof(this.eventString) !== "string"){ print ("ERROR! Event eventString is not a string:" + this.eventString); }
+	}
+	
+	this.setEvent(timeTillEvent,eventString);
+//End of Class Event
+}
+
+
+//**********End Data Classes: Need, Request, Allocation, Event **********//
 
 
 
@@ -121,6 +139,7 @@ function Process(needList, arrivalTime, pID, name)
     this.progress    = 0; // The process's internal progress meter. Initialize to 0. 
     this.blockWaitingData = {};  // (key:value) pairs of the form (waitForThis:beforeRequestingThis) go in this dictionary.
     this.terminated  = false;
+    this.lastMissing = [];
     this.name        = (name        !== undefined) ? name        : "Process #" + this.pID;
     
     //Metric variables:
@@ -248,22 +267,22 @@ function Process(needList, arrivalTime, pID, name)
     
     
     // Returns the progress-time until the next new need arrives in this process.
-    this.timeTillNextEvent = function(allocList)
+    this.getNextEvent = function(allocList)
     {
         // If allocList not given, assume all needs will be met. 
         var unmetNeeds = (allocList !== undefined) ? this.currentRequests(allocList) : [];
         
-        var retVal = MAX_INT;  
+        var retVal = new Event();  
         if (unmetNeeds.length === 0){ // If we have unmet needs we are blocked and won't be causing any new events.
             retVal--; // We decrement by one to allow a MAX_INT return to only occur when a process is blocked.
             for (ii in this.needList){ // If not blocked, the next event is the next incoming request, if any. 
                 var need = this.needList[ii];
-                if (0 < (need.startTime - this.progress) && (need.startTime - this.progress) < retVal){ 
-                    retVal = need.startTime - this.progress; 
+                if (0 < (need.startTime - this.progress) && (need.startTime - this.progress) < retVal.timeTillEvent){ 
+                    retVal.setEvent(need.startTime - this.progress, "New request made by \""+this.name+"\" for \""+need.resName+"\"."); 
                 }
             }
         }
-        //print("DEBUG:P"+this.pID+": timeTillNextEvent returning "+ retVal +".");
+        //print("DEBUG:P"+this.pID+": getNextEvent returning "+ retVal.timeTillEvent +".");
         return retVal;
     }
     
@@ -296,11 +315,11 @@ function Process(needList, arrivalTime, pID, name)
         var unmetNeeds = this.currentRequests(allocList);
         //print ("DEBUG:P"+this.pID+" number of unmet needs:" + unmetNeeds.length);
         
-        var missing = ""; // Keep track of missing resources in order to report them. 
+        var missing = []; // Keep track of missing resources in order to report them. 
         var retVal = [];  // The list of releases that we're going to return
         for(var ii in unmetNeeds){ //Only unmet needs will be returned.  
             var res = unmetNeeds[ii].resName;
-            missing += res + "   ";
+            missing.push(res);
             //print("DEBUG:P"+this.pID+": Missing res="+res+". bwData[res]="+blockWaitingData[res]+".");
             //Check for this resource in the blockWaitingData.  
             if ( blockWaitingData[res] !== undefined && this.blockWaitingData[res] === undefined){
@@ -318,7 +337,8 @@ function Process(needList, arrivalTime, pID, name)
                 }
             }
         }
-        if (missing !== ""){
+        this.lastMissing = missing;
+        if (missing.length > 0){
             this.waitDuration += time;
             print("P"+this.pID+":giveFinalAllocations: No progress. Missing resource: " + missing + ". Total time waiting=" + this.waitDuration); 
             retVal.push("BLOCKED");
@@ -328,10 +348,11 @@ function Process(needList, arrivalTime, pID, name)
         //We have all the resources we need. Now determine how much progress is made. 
         // This should usually be "time", but it could be shorter if a new need starts 
         // between (progress) and (progress + time).
-        var newProgress = time;     
-        if (this.timeTillNextEvent() < time){
-            print("WARNING: P"+this.pID+":giveFinalAllocations: New need arriving before time="+time+" Limiting progress to "+this.timeTillNextEvent()+" cycles.");   
-            newProgress = this.timeTillNextEvent();
+        var newProgress = time;  
+		var	nextEventTime = this.getNextEvent().timeTillEvent; 	
+        if (nextEventTime < time){
+            print("WARNING: P"+this.pID+":giveFinalAllocations: New need arriving before time="+time+" Limiting progress to "+nextEventTime+" cycles.");   
+            newProgress = nextEventTime;
         }
     
         //At this point in the function we know we will increment progress since we have all needed resources.
@@ -496,30 +517,30 @@ function Resource(name, initialClock)
     
     
     // Return the time until the next forseeable scheduling event on this resource.
-    this.timeTillNextEvent = function(activeProcList) //activeProcList is actual procs, not ID numbers. 
+    this.getNextEvent = function(activeProcList) //activeProcList is actual procs, not ID numbers. 
     {
         // Return MAX_INT by default if no events found.
-        var retVal = MAX_INT;
+        var retVal = new Event();
         // Check the minimum time being currently being allocated to a non-blocked process if any.
         var allocs = this.currentAllocations();
         if (allocs !== undefined && allocs.length > 0){
             for(var jj in allocs){
                 // If the allocation is preemptive, it always has an event. 
-                if (retVal > allocs[jj].timeTillPreemption){
+                if (retVal.timeTillEvent > allocs[jj].timeTillPreemption){
                     print("DEBUG: Preemptive allocation defines event.");
-                    retVal = allocs[jj].timeTillPreemption;
+                    retVal.setEvent(allocs[jj].timeTillPreemption, "P"+allocs[jj].pID+" is preempted from the "+this.name+" resource.");
                 } 
                 // If it's not preemptive, it only has an event if the process allocated to is not blocked.
                 for(var ii in activeProcList){
                     if (activeProcList[ii] === allocs[jj].pID){
-                        if (retVal > allocs[jj].duration){
-                            retVal = allocs[jj].duration;
+                        if (retVal.timeTillEvent > allocs[jj].duration){
+                            retVal.setEvent(allocs[jj].duration, "P"+allocs[jj].pID+" releases the "+this.name+" resource.");
                         }
                     }
                 }
             }
         }
-        //print("DEBUG:Resource "+this.name+" timeTillNextEvent returning "+ retVal +".");
+        //print("DEBUG:Resource "+this.name+" getNextEvent returning "+ retVal.timeTillEvent +".");
         return retVal;
     }
 
@@ -532,19 +553,19 @@ function Resource(name, initialClock)
         var html = '';
         var allocations = this.currentAllocations() || [];
         var state = {};
+        var addenda = {};
         for(var ii in this.waitingQueue) {
             state[this.waitingQueue[ii].pID] = 'waiting';
         }
-        for(var ii in this.blockWaitList) {
-            state[this.blockWaitList[ii].pID] = 'blocked';
-        }
         for(var ii in allocations) {
             state[allocations[ii].pID] = 'active';
+            addenda[allocations[ii].pID] = ' (' + allocations[ii].duration + 'ms)';
         }
         console.log(state);
         for(var ii in state) {
             if(!state.hasOwnProperty(ii)) continue;
-            html += '<li class="' + state[ii] + '" data-pid="' + ii + '"></li>';
+            var addendum = '';
+            html += '<li class="' + state[ii] + '" data-pid="' + ii + '"><span class="name"></span> '+(addenda[ii]||'')+'</li>';
         }
         return html;
     }
@@ -557,7 +578,7 @@ function Resource(name, initialClock)
 
 
 // Class Simulator
-function Simulator(processList, resourceList, terminatedProcList, simulatorClock)
+function Simulator(processList, resourceList, terminatedProcList, simulatorClock, lastEventString)
 {
     // Initial parameters:
     // If we don't specify anything, just throw a few default objects in the lists.
@@ -565,7 +586,8 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
     this.resourceList       = resourceList       !== undefined ? resourceList       : [new Resource("CPU")];
     this.terminatedProcList = terminatedProcList !== undefined ? terminatedProcList : []; // Terminated list starts empty.
     this.simulatorClock     = simulatorClock     !== undefined ? simulatorClock     : 0; // Start the simulator wide clock at 0.
-
+	this.lastEventString	= lastEventString    !== undefined ? lastEventString    : 
+		("Simulator initialized with "+this.processList.length+" processes and "+this.resourceList.length+" resources."); // The default "last event" of a new simulation. 
     
     this.historyBuffer = []; // This cannot be specified at creation.  Always empty.
     this.maxHistorySize = DEFAULT_MAX_HISTORY_SIZE; // Max history size starts at a constant, but can be changed after initialization.  
@@ -650,7 +672,8 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
                 cloneObject(this.processList),       // New processList is a close of current one. 
                 cloneObject(this.resourceList),      // New resourceList is a close of current one. 
                 cloneObject(this.terminatedProcList),// New terminatedProcList is a close of current one. 
-                this.simulatorClock);                // Keep the same simulatorClock. 
+                this.simulatorClock,                 // Keep the same simulatorClock. 
+				this.lastEventString);				 // Remember the last event description.
         // Push this new snapshop onto the history list.  
         this.historyBuffer.push(snapshot);
         // Make sure the history buffer doesn't get too big. 
@@ -679,6 +702,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             this.resourceList       = lastSnapshot.resourceList;
             this.terminatedProcList = lastSnapshot.terminatedProcList;          
             this.simulatorClock     = lastSnapshot.simulatorClock;
+			this.lastEventString    = lastSnapshot.lastEventString;
         } else {
             print("ERROR! Something other than a snapshot found in historyBuffer. type="+typeof(lastSnapshot)+".");
         }
@@ -755,21 +779,21 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             //4 again.) Refresh our allocations to take account of the releases.  
             var allocDict = this.getCurrentAllocations();
         } else {
-            print ("Simulator: No extra releases or requests due to block-waiting.");
+            //print ("Simulator: No extra releases or requests due to block-waiting.");
         }
         
         //8.) Now find the time till the next event. We check both the process
-        // and resource lists for the shortest timeTillNextEvent. 
-        var nextEventTime = MAX_INT;
+        // and resource lists for the shortest getNextEvent. 
+        var nextEvent = new Event();
         var activeProcList = [];
         for (ii in this.processList){ //First check processList
             var proc = this.processList[ii];
             // We pass the final allocations to the process so it won't indicate any next event if its about to be blocked.  
-            var time = proc.timeTillNextEvent(allocDict[proc.pID]);
-            if (time < nextEventTime){ // Keep track of the shortest time reported from. 
-                nextEventTime = time;
+            var event = proc.getNextEvent(allocDict[proc.pID]);
+            if (event.timeTillEvent < nextEvent.timeTillEvent){ // Keep track of the shortest time reported from. 
+                nextEvent = event;
             }
-            if (time !== MAX_INT){ // If process is not blocked, add to active list. 
+            if (event.timeTillEvent !== MAX_INT){ // If process is not blocked, add to active list. 
                 activeProcList.push(proc.pID);
             }
         }
@@ -778,21 +802,21 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             // We pass activeProcList to each resource, so the resources can be informed about whether the processes 
             // they've allocated to are making progress. If a resource is allocated to a blocked process it will not 
             // be released and will not cause an event unless the allocation is revoked or preempted. 
-            var time = this.resourceList[ii].timeTillNextEvent(activeProcList);
-            if (time < nextEventTime){
-                nextEventTime = time;
+            var event = this.resourceList[ii].getNextEvent(activeProcList);
+            if (event.timeTillEvent < nextEvent.timeTillEvent){
+                nextEvent = event;
             }
         }
-        if (nextEventTime === MAX_INT){
+        if (nextEvent.timeTillEvent === MAX_INT){
             print ("Simulator: No more events found! This simulation is over!");
             return 0;
         }
     
-        print("Simulator: Time till next event is " + nextEventTime + ".");
+        print("Simulator: Time till next event is "+nextEvent.eventString+" in "+nextEvent.timeTillEvent+" cycles.");
         
         //9.) Resources need to be notified of how much time is passing for this event so they can keep their internal records.  
         for (ii in this.resourceList){ 
-            this.resourceList[ii].notifyResourceClockWrapper(nextEventTime);
+            this.resourceList[ii].notifyResourceClockWrapper(nextEvent.timeTillEvent);
         }
         
         //10.) Now we have all the allocations in lists by pID.  Send them out to the processes!
@@ -803,7 +827,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             var proc = this.processList[ii];
             processesWithAllocations++;
             //Call giveFinalAllocations: we pass in allocations and get out names of resources to be released.
-            var releases = proc.giveFinalAllocations(allocDict[proc.pID], nextEventTime, blockWaitData);
+            var releases = proc.giveFinalAllocations(allocDict[proc.pID], nextEvent.timeTillEvent, blockWaitData);
             //Put the releases in buckets by resource name, just like we did with allocations by pID.
             for(var jj in releases){
                 var release = releases[jj];
@@ -841,10 +865,11 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         //  return 0;
         //}
 
-        this.simulatorClock += nextEventTime; // The simulator-wide clock is incremented by the time-to-next-event.
-        print("Simulator: Exit simNextEvent. time passed="+nextEventTime+" Clock="+this.simulatorClock+".");
+        this.simulatorClock += nextEvent.timeTillEvent; // The simulator-wide clock is incremented by the time-to-next-event.
+		this.lastEventString = nextEvent.eventString;
+        print("Simulator: Exit simNextEvent. event=\""+nextEvent.eventString+"\" time passed="+nextEvent.timeTillEvent+" Clock="+this.simulatorClock+".");
         
-        return nextEventTime;
+        return nextEvent.eventString; // Doesn't matter much what we return.  
     }
     
     
