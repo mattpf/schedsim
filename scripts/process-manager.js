@@ -89,6 +89,7 @@ ProcessManager = (function() {
             $.each(processes, function() {
                 this.reset();
             });
+            $('.metrics').html('');
         }
     }
 })();

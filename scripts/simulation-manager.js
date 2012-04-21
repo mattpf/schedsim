@@ -11,7 +11,7 @@ SimulationManager = (function() {
         $.each(ProcessManager.processes(), function() {
             var p = $('#p' + this.pID);
             p.find('.bar').css('width', ((this.getRunDuration() / this.getTotalRunDuration()) * 100) + '%')
-            p.find('.metrics').html(' – Waited: ' + this.getWaitDuration() + 'ms');
+            p.find('.metrics').html(' – Waited: ' + this.getWaitDuration() + 'ms | Ran: ' + this.getRunDuration() + ' ms');
             totalWaiting += this.getWaitDuration();
         });
 

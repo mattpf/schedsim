@@ -49,6 +49,7 @@
 
 .state-box.process.terminated {
     text-decoration: line-through;
+    font-weight: normal;
 }
 
 .state-box.resource {
