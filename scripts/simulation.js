@@ -25,6 +25,15 @@ function cloneObject(obj)
         return clone;
 }
 
+
+
+
+
+
+
+
+//**********Begin Data Classes: Need, Request, Allocation **********//
+
 // Class Need
 // We define a need as a resource needed (by a process) for a certain duration beginning at a certain starttime.
 // A quantity can also be optionally defined.
@@ -55,11 +64,11 @@ function Need(resName, duration, startTime, quantity)
 // the quantity and time the resource is needed for based on the processes current state. 
 function Request(pID, resName, duration, quantity)
 {
-    if (typeof(pID) !== "number"){ print ("ERROR! pID is not number:" + pID); }
+    if (typeof(pID) !== "number"){ print ("ERROR! Request pID is not number:" + pID); }
     this.pID      = pID;       // not optional. 
-    if (typeof(resName) !== "string"){ print ("ERROR! resource is not string:" + resName); }
+    if (typeof(resName) !== "string"){ print ("ERROR! Request resource is not string:" + resName); }
     this.resName = resName;  // not optional. 
-    if (typeof(duration) !== "number"){ print ("ERROR! duration is not number:" + duration); }
+    if (typeof(duration) !== "number"){ print ("ERROR! Request duration is not number:" + duration); }
     this.duration = duration;  // not optional. 
     this.quantity = quantity  !== undefined ? quantity  : 1;//quantity default is 1.(some resources ignore quantity)
 
@@ -72,22 +81,24 @@ function Request(pID, resName, duration, quantity)
 function Allocation(resName, pID, duration, quantity)
 {
     //Initial variables:
-    if (typeof(resName) !== "string"){ print ("ERROR! resource is not string:" + resName); }
+    if (typeof(resName) !== "string"){ print ("ERROR! Allocation resource is not string:" + resName); }
     this.resName = resName;  // not optional. 
-    if (typeof(pID) !== "number"){ print ("ERROR! pID is not number:" + pID); }
+    if (typeof(pID) !== "number"){ print ("ERROR! Allocation pID is not number:" + pID); }
     this.pID      = pID;       // not optional. 
-    if (typeof(duration) !== "number"){ print ("ERROR! duration is not number:" + duration); }
+    if (typeof(duration) !== "number"){ print ("ERROR! Allocation duration is not number:" + duration); }
     this.duration = duration;  // not optional. 
     this.quantity = quantity  !== undefined ? quantity  : 1;//quantity default is 1.(some resources ignore quantity)
 
 //End of Class Allocation
 }
 
-//function BlockWaitInfoNode(waitFor, beforeRequesting)
-//{
-//  this.waitFor = waitFor;
-//  this.beforeRequesting = beforeRequesting;
-//}
+//**********End Data Classes: Need, Request, Allocation **********//
+
+
+
+
+
+//**********Begin Primary Base Classes: Process, Resource, Simulator **********//
 
 // Class Process
 function Process(needList, arrivalTime, pID, name)
@@ -98,14 +109,13 @@ function Process(needList, arrivalTime, pID, name)
     
     // Assign initial parameters:
     //Core Parameters:
-    this.needList    = (needList    !== undefined) ? needList    : [ new Need("CPU",1000,0) ]; // Default is to just need 1000 cycles of CPU. 
-    this.arrivalTime = (arrivalTime !== undefined) ? arrivalTime : 0;                          // Default Arrival time is 0. 
-    this.pID         = (pID         !== undefined) ? pID         : nextUniqueID();             // pID Default is nextUniqueID. 
+    this.needList    = (needList    !== undefined) ? needList    : [ ];             // Default is an empty need list. 
+    this.arrivalTime = (arrivalTime !== undefined) ? arrivalTime : 0;               // Default Arrival time is 0. 
+    this.pID         = (pID         !== undefined) ? pID         : nextUniqueID();  // pID Default is nextUniqueID. 
     this.progress    = 0; // The process's internal progress meter. Initialize to 0. 
-    this.blockWaitingData = {};  // waitFor:beforeRequesting key:value pairs.  
+    this.blockWaitingData = {};  // (key:value) pairs of the form (waitForThis:beforeRequestingThis) go in this dictionary.
     this.terminated  = false;
     this.name        = (name        !== undefined) ? name        : "Process #" + this.pID;
-    
     
     //Metric variables:
     this.waitDuration      = 0;   // Total time spent waiting for resources. 
@@ -124,9 +134,16 @@ function Process(needList, arrivalTime, pID, name)
     }
     this.isFinished = function () { return this.progress >= this.getTotalRunDuration(); }
     this.hasTerminated = function() { return this.terminated; }  
-
-      
     
+    // Resets the process to its initial state.
+    this.reset = function() {
+        this.progress = 0;
+        this.terminated = false;
+        this.waitDuration = 0;
+        this.firstProgressTime = 0;
+        this.finishTime = 0;
+    }
+
     // Returns a list of Request objects; these are the process's internal
     // needs both filtered and offset based on the current progress-time. 
     // * If allocList if given, return any needs still unmet by allocList or [] if none. 
@@ -208,6 +225,7 @@ function Process(needList, arrivalTime, pID, name)
         return retVal;
     }
     
+    
     // Returns the amount of progress-time that the process currently
     // needs with the specified resource.
     this.currentNeed = function(resName)
@@ -264,13 +282,11 @@ function Process(needList, arrivalTime, pID, name)
             print ("WARNING:P"+this.pID+": This Process has already terminated and doesn't need any more allocations.");
             return allocList; 
         }
-    
-    
+        
         // Make sure the resources beeing provided are the same as
         // the resources we actually requested to be scheduled.  
         var allNeeds = this.currentRequests();
         var unmetNeeds = this.currentRequests(allocList);
-        
         //print ("DEBUG:P"+this.pID+" number of unmet needs:" + unmetNeeds.length);
         
         var missing = ""; // Keep track of missing resources in order to report them. 
@@ -301,7 +317,6 @@ function Process(needList, arrivalTime, pID, name)
             retVal.push("BLOCKED");
             return retVal;    
         }
-    
     
         //We have all the resources we need. Now determine how much progress is made. 
         // This should usually be "time", but it could be shorter if a new need starts 
@@ -352,14 +367,18 @@ function Process(needList, arrivalTime, pID, name)
 
 
 
-
-
 // Class Resource
-function Resource(name)
+function Resource(name, initialClock)
 {
-    this.name = name; // The name is not optional. Every resource needs one.
-    this.waitingQueue = [];
+    this.name          = name; // The name is not optional. Every resource needs one.
+    this.resourceClock = initialClock !== undefined ? initialClock : 0; // Clock can be given an optional initial value. Defaults to 0. 
+    this.waitingQueue  = [];
     
+    this.reset = function() {
+        this.waitingQueue = [];
+        this.resourceClock = initialClock;
+    }
+
     // This function sets up a blocking wait relationship between this resource and another resource. 
     // If a process is waiting for this resource it will release blockResource until "this" is aquired. 
     this.blockWaitList = [];
@@ -376,8 +395,9 @@ function Resource(name)
     {
         //If input type is a process object instead of pid, get the pid. 
         if (typeof(pID) !== "number"){ 
-            print("ERROR! non number input to requestInQueue:"+pID);
-            pID = pID.pID;
+            print("ERROR! non number input to requestInQueue: "+pID+".");
+            if (typeof(pID) !== "string"){ pID = parseInt(pID); }
+            else { pID = pID.pID; } 
         }
         //Default is to search this.waitingQueue.
         for (ii in this.waitingQueue){ 
@@ -398,9 +418,10 @@ function Resource(name)
         for(var ii in requestList){ 
             var requestID = requestList[ii].pID;
             var addNewRequest = true;
-            //print("DEBUG:"+requestList[ii].string+" "); 
+            //print("DEBUG: Request by P"+requestList[ii].pID+" "); 
             for (jj in this.waitingQueue){ 
                 var queueID = this.waitingQueue[jj].pID;
+                //print("DEBUG:      Compare to - P"+queueID+" "); 
                 if (requestID == queueID){
                     // Update the same position in the waiting queue with the new request. 
                     this.waitingQueue[jj] = requestList[ii];
@@ -433,25 +454,6 @@ function Resource(name)
     }   
     
     
-    // Return the time until the next forseeable scheduling event on this resource.
-    this.timeTillNextEvent = function(activeProcList) //activeProcList is actual procs, not ID numbers. 
-    {
-        //Default FIFO implementation: return how much more time the currently scheduled process needs, unless
-        // the currently scheduled process is blocked, in which case return MAX_INT. 
-        if (this.waitingQueue.length > 0){
-            for(var ii in activeProcList){
-                if (activeProcList[ii] === this.waitingQueue[0].pID){
-                    var retVal = this.waitingQueue[0].duration;
-                    print("DEBUG:Resource "+this.name+" timeTillNextEvent returning "+ retVal +".")
-                    return retVal;
-                }
-            }
-        }
-        print("DEBUG:Resource "+this.name+" timeTillNextEvent returning MAX_INT.")
-        return MAX_INT;
-    }
-
-    
     // Returns a list of the current allocations for this resource.
     // Each allocation indicates a process and details about the resource allocaed.
     this.currentAllocations = function()
@@ -464,13 +466,51 @@ function Resource(name)
             return [ new Allocation(this.name, this.waitingQueue[0].pID, timeToAllocate, this.waitingQueue[0].quantity) ];
         }
         return undefined;
-    }  
+    }
+    
+    
+    // This function is called to notify the resource that time its current allocations have been 
+    // passed to the appropriate processes and time has passed.  This allows the resource to keep 
+    // track of it's own internal clock and metrics.
+    this.notifyResourceClockWrapper = function(timePassed)
+    { 
+        this.clock += timePassed; 
+        return this.notifyResourceClock(timePassed);
+    }
+    
+    // This is the function designed to be overwritten in new resource classes. 
+    // It only needs to deal with the elements of the passage of time that influence
+    // it allocation decisions. (could also put in extra metrics if you wanted)
+    this.notifyResourceClock = function(timePassed)
+    {
+        //Default FIFO cares nothing for the clock.
+        return undefined;
+    }
+    
+    
+    // Return the time until the next forseeable scheduling event on this resource.
+    this.timeTillNextEvent = function(activeProcList) //activeProcList is actual procs, not ID numbers. 
+    {
+        // Return the minimum time being currently being allocated to a non-blocked process if any. Otherwise return MAX_INT.
+        var allocs = this.currentAllocations();
+        if (allocs !== undefined && allocs.length > 0){
+            for(var ii in activeProcList){
+                for(var jj in allocs){
+                    if (activeProcList[ii] === allocs[jj].pID){
+                        var retVal = allocs[jj].duration;
+                        //print("DEBUG:Resource "+this.name+" timeTillNextEvent returning "+ retVal +".")
+                        return retVal;
+                    }
+                }
+            }
+        }
+        //print("DEBUG:Resource "+this.name+" timeTillNextEvent returning MAX_INT.")
+        return MAX_INT;
+    }
 
     // Provide a custom renderer!
     // Putting this here violates ~everything. Is that justifiable?
-    // ...probably not. "Not my design."
-    // colours, if provided, is a mapping from pid to background colour.
-    this.render = function(colours) {
+    this.render = function() {
         // Default implementation: produce a list of the waiting queue, followed by a list of
         // the block waiting queue?
         console.log(this);
@@ -489,14 +529,13 @@ function Resource(name)
         console.log(state);
         for(var ii in state) {
             if(!state.hasOwnProperty(ii)) continue;
-            html += '<li class="' + state[ii] + '" style="background-color:hsl(' +  colours[ii] + ', 75%, 75%)" data-pid="' + ii + '"></li>';
+            html += '<li class="' + state[ii] + '" data-pid="' + ii + '"></li>';
         }
         return html;
     }
     
 // End of Class Resource
 }
-
 
 
 
@@ -516,8 +555,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
     this.historyBuffer = []; // This cannot be specified at creation.  Always empty.
     this.maxHistorySize = DEFAULT_MAX_HISTORY_SIZE; // Max history size starts at a constant, but can be changed after initialization.  
     
-    print("Simulator initialized with "+this.processList.length+" processes and "+this.resourceList.length+" resources." );
-    
+    //print("DEBUG: Simulator initialized with "+this.processList.length+" processes and "+this.resourceList.length+" resources." );
     
     //getProcess - gets a process by ID.  
     this.getProcess = function(pID)
@@ -561,6 +599,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         for (ii in this.resourceList){
             var allocs = this.resourceList[ii].currentAllocations();
             for (jj in allocs){
+                //print("DEBUG: In getCurrentAllocations: pID="+allocs[jj].pID+".");
                 allocDict[allocs[jj].pID].push(allocs[jj]);
             }
         }
@@ -656,7 +695,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         for (ii in needDict) {
             var res = this.getResource(ii);
             if (res !== undefined) { res.addRequests(needDict[ii]); }
-            else { print ("ERROR! A cannot find requested resource \""+ii+"\" in this simulation."); }
+            else { print ("ERROR! cannot find requested resource \""+ii+"\" in this simulation."); }
         }
         //4.) Get the current allocations from each resource. Accumulate them in lists by process.
         var allocDict = this.getCurrentAllocations();
@@ -696,7 +735,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             for (ii in needDict) {
                 var res = this.getResource(ii);
                 if (res !== undefined) { res.addRequests(needDict[ii]); }
-                else { print ("ERROR! A cannot find requested resource \""+ii+"\" in this simulation."); }
+                else { print ("ERROR! Cannot find requested resource \""+ii+"\" in this simulation."); }
             }
             //4 again.) Refresh our allocations to take account of the releases.  
             var allocDict = this.getCurrentAllocations();
@@ -736,7 +775,12 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
     
         print("Simulator: Time till next event is " + nextEventTime + ".");
         
-        //9.) Now we have all the allocations in lists by pID.  Send them out to the processes!
+        //9.) Resources need to be notified of how much time is passing for this event so they can keep their internal records.  
+        for (ii in this.resourceList){ 
+            this.resourceList[ii].notifyResourceClockWrapper(nextEventTime);
+        }
+        
+        //10.) Now we have all the allocations in lists by pID.  Send them out to the processes!
         // The processes will return lists of resources to release.  
         var releaseDict = {};
         var processesWithAllocations = 0;
@@ -764,7 +808,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             }
         }
     
-        //10.) Now we have all the releases in lists by resource name.  Send them out to the resources!
+        //11.) Now we have all the releases in lists by resource name.  Send them out to the resources!
         var anyRelease = false;
         for (ii in this.resourceList){
             var res = this.resourceList[ii];
@@ -774,7 +818,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             }
         }
         
-        //11.) Check for deadlock - giveFinalAllocations returns special ID "BLOCKED" if it can't make progress. 
+        //12.) Check for deadlock - giveFinalAllocations returns special ID "BLOCKED" if it can't make progress. 
         // If all processes with resources are blocked, then we may be in a deadlock.  
         if (!anyRelease && releaseDict["BLOCKED"] !== undefined && releaseDict["BLOCKED"].length === processesWithAllocations){
             print("Simulator: No allocated process can make any progress!  Simulation ends in deadlock!!");
@@ -782,12 +826,13 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             return 0;
         }
 
-        this.simulatorClock += nextEventTime; // Start the simulator wide clock at 0.
+        this.simulatorClock += nextEventTime; // The simulator-wide clock is incremented by the time-to-next-event.
         print("Simulator: Exit simNextEvent. time passed="+nextEventTime+" Clock="+this.simulatorClock+".");
         
         return nextEventTime;
     }
     
+    
 //End of Class Simulator
 }
-
+//********** End Primary Base Classes: Process, Resource, Simulator **********//
