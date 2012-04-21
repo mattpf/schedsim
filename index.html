@@ -54,7 +54,7 @@
                             <ul class="dropdown-menu">
                                 <li><a href="#" id="add-cpu">CPU</a></li>
                                 <li class="divider"></li>
-                                <li><a href="#" id="add-custom-resource">Custom</a></li>
+                                <li><a href="#" id="add-custom-resource">Generic</a></li>
                             </ul>
                         </div>
                     </div>
@@ -62,13 +62,7 @@
                         <h3>Processes</h3>
                         <ul id="process-list">
                         </ul>
-                        <div class="dropdown btn-add">
-                            <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">Add <b class="caret"></b></a>
-                            <ul class="dropdown-menu">
-                                <li class="divider"></li>
-                                <li><a href="#" id="add-custom-process">Custom</a></li>
-                            </ul>
-                        </div>
+                        <a class="btn" id="add-custom-process" href="#" class="btn-add">Add</b></a>
                     </div>
                     <div class="well">
                         <div id="stopped-buttons">
@@ -91,11 +85,11 @@
         </div> <!-- /container -->
 
 
-        <!-- Modal dialog for creating new custom resources -->
+        <!-- Modal dialog for creating new generic resources -->
         <div class="modal fade" id="custom-resource-modal">
             <div class="modal-header">
                 <a class="close" data-dismiss="modal">x</a>
-                <h3>Custom Resource</h3>
+                <h3>Generic Resource</h3>
             </div>
             <div class="modal-body">
                 <div id="custom-resource-message"></div>
@@ -114,6 +108,48 @@
             <div class="modal-footer">
                 <a href="#" class="btn" data-dismiss="modal">Cancel</a>
                 <a href="#" class="btn btn-primary" id="modal-resource-save">Save</a>
+            </div>
+        </div>
+
+        <!-- Modal dialog for creating new RRCPUs -->
+        <div class="modal fade" id="rrcpu-modal">
+            <div class="modal-header">
+                <a class="close" data-dismiss="modal">x</a>
+                <h3>Round Robin CPU</h3>
+            </div>
+            <div class="modal-body">
+                <div id="rrcpu-message"></div>
+                <form class="form-horizontal">
+                    <fieldset>
+                        <div class="control-group">
+                            <label class="control-label" for="rrcpu-name">Resource Name</label>
+                            <div class="controls">
+                                <input type="text" class="input-large" value="CPU" id="rrcpu-name">
+                                <p class="help-block">The name of the Round Robin CPU; used when other resources refer to it.</p>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="rrcpu-name">Quantum</label>
+                            <div class="controls">
+                                <div class="input-append">
+                                    <input type="text" class="input-small" value="100" id="rrcpu-quantum" value="50"><span class="add-on">ms</span>
+                                </div>
+                                <p class="help-block">Maximum period to run one process before switching.</p>
+                            </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label" for="rrcpu-name">Cores</label>
+                            <div class="controls">
+                                <input type="text" class="input-small" value="1" id="rrcpu-cores">
+                                <p class="help-block">Maximum simultaneously executing processes.</p>
+                            </div>
+                        </div>
+                    </fieldset>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <a href="#" class="btn" data-dismiss="modal">Cancel</a>
+                <a href="#" class="btn btn-primary" id="rrcpu-save">Save</a>
             </div>
         </div>
 
@@ -175,6 +211,7 @@
         <script src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
         <script src="bootstrap/js/bootstrap.js"></script>
         <script src="scripts/simulation.js"></script>
+        <script src="scripts/special-resources.js"></script>
         <script src="scripts/resource-manager.js"></script>
         <script src="scripts/process-manager.js"></script>
         <script src="scripts/simulation-manager.js"></script>

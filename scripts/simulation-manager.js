@@ -28,14 +28,16 @@ SimulationManager = (function() {
         $('#simulation-resource-boxes').html('');
         $.each(ResourceManager.resources(), function() {
             var html = '<div data-resource="' + this.name + '" class="state-box resource"><h4>' + this.name + '</h4><ul>' + 
-                this.render(colours) + '</ul></div>';
+                this.render() + '</ul></div>';
             $('#simulation-resource-boxes').append(html);
         });
 
         // Because rendering is done at the wrong level, the things we just rendered don't really have a clue what's going on.
         // More specifically, they don't know their own names. We fill those in now.
+        // Since we're at it, we fill in their colours here as well.
         $('#simulation-resource-boxes > div > ul > li').each(function() {
-            $(this).html(simulation.getProcess(parseInt($(this).attr('data-pid'))).name);
+            var pid = parseInt($(this).attr('data-pid'));
+            $(this).css('background-color', 'hsl(' + colours[pid] + ', 75%, 75%)').html(simulation.getProcess(pid).name);
         });
     }
 
@@ -62,6 +64,8 @@ SimulationManager = (function() {
         },
         stop: function() {
             simulation = null;
+            ProcessManager.resetAll();
+            ResourceManager.resetAll();
 
             // Swap out the buttons.
             $('#stopped-buttons').show();

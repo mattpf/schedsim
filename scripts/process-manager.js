@@ -81,6 +81,11 @@ ProcessManager = (function() {
             // Sometimes the simulation invalidates our process references.
             // This function can fix them up.
             processes = simulation.processList.concat(simulation.terminatedProcList);
+        },
+        resetAll: function() {
+            $.each(processes, function() {
+                this.reset();
+            });
         }
     }
 })();
