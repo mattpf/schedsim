@@ -1,4 +1,4 @@
-#resource-list, #simulation-resource-boxes ul, #modal-process-needs {
+#resource-list, .state-box ul, #modal-process-needs {
     list-style-type: none;
     margin-left: 0px;
 }
@@ -42,9 +42,12 @@
 }
 
 .state-box.process {
-    height: 30px;
-    line-height: 30px;
+    min-height: 30px;
     font-weight: bold;
+}
+
+.state-box.process h4 {
+    line-height: 30px;
 }
 
 .state-box.process.terminated {
@@ -84,10 +87,15 @@
     font-style: line-through;
 }
 
-#simulation-resource-boxes ul {
+.state-box ul {
     margin-bottom: 0px;
 }
 
-#simulation-resource-boxes h4 {
+.state-box h4 {
     border-bottom: 2px solid black;
+}
+
+#last-event-string {
+    text-align: center;
+    font-style: italic;
 }

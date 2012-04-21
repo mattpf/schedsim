@@ -24,6 +24,17 @@ ResourceManager = (function() {
         return true;
     }
 
+    function setupBlocks(resource, parent) {
+        var list = parent.find('select');
+        list.each(function() {
+            var v = $(this).val();
+            if(v != "") {
+                console.log("adding wait for " + v + " on " + resource.name);
+                resource.addBlockWaitFor(v);
+            }
+        });
+    }
+
     function saveGenericResource() {
         if($('#modal-resource-name').val() == "") {
             $('#custom-resource-message').html("<div class='alert alert-error'><strong>Failed.</strong> You must specify a resource name.</div>");
@@ -35,6 +46,7 @@ ResourceManager = (function() {
             $('#custom-resource-message').html("<div class='alert alert-error'><strong>Failed.</strong> There already exists a '" + name + "' resource.</div>");
             return false;
         } else {
+            setupBlocks(resource, $('#custom-resource-modal .block-list'));
             $('#custom-resource-modal').modal('hide');
         }
     }
@@ -58,9 +70,21 @@ ResourceManager = (function() {
         }
     }
 
+    function generateBlockList(parent) {
+        var list = $(parent).find('.block-list');
+        var entry = $('<select class="block-list-entry span1"><option value="">(none)</select>');
+        list.append(entry);
+        $.each(resources, function() {
+            entry.append('<option value="'+this.name+'">'+this.name+'</option>');
+        });
+    }
+
     $(function() {
         $('#modal-resource-save').click(saveGenericResource);
         $('#rrcpu-save').click(saveRRCPU);
+        $('.blocklist-add').click(function() {
+            generateBlockList($(this).parent());
+        })
 
         // Handle all the resource close buttons by handling all clicks inside the resource list,
         // checking if it came from a close button, then finding the list item it's inside.
@@ -83,6 +107,7 @@ ResourceManager = (function() {
         addGeneric: function() {
             $('#modal-resource-name').val('');
             $('#custom-resource-message').html('');
+            generateBlockList($('#custom-resource-modal'));
             $('#custom-resource-modal').modal({'backdrop': 'static'});
         },
         addCPU: function() {
@@ -101,6 +126,13 @@ ResourceManager = (function() {
         resetAll: function() {
             $.each(resources, function() {
                 this.reset();
+            });
+        },
+        bulkLoad: function(resourceList) {
+            $.each(resourceList, function() {
+                if(!addResource(this)) {
+                    alert("Cannot add resource with duplicate name.");
+                }
             });
         }
     }

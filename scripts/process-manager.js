@@ -9,7 +9,18 @@ ProcessManager = (function() {
         if(origin.hasClass('delete')) {
             origin.closest('li').remove();
         }
-    })
+    });
+
+    function addProcess(process) {
+        processes[processes.length] = process;
+
+
+        $('#process-list').append('<li data-pid="'+process.pID+'" id="p'+process.pID+'"><strong>' + process.name + 
+            '</strong> <span class="metrics"></span> <a href="#" class="close">&times</a>' + 
+            '<div class="progress" style="display: none;">' +
+                '<div class="bar" style="width: 0%;"></div>' +
+            '</div></li>');
+    }
 
     $(function() {
         $('#modal-process-add-need').click(function() {
@@ -50,15 +61,7 @@ ProcessManager = (function() {
             });
 
             var process = new Process(needs, arrival, undefined, name);
-            processes[processes.length] = process;
-
-
-            $('#process-list').append('<li data-pid="'+process.pID+'" id="p'+process.pID+'"><strong>' + process.name + 
-                '</strong> <span class="metrics"></span> <a href="#" class="close">&times</a>' + 
-                '<div class="progress" style="display: none;' + /*' position: relative;' +*/ '">' +
-                    '<div class="bar" style="width: 0%;"></div>' +
-                    //'<div class="text"><span></span></div>' +
-                '</div></li>')
+            addProcess(process);
 
             $('#custom-process-modal').modal('hide');
         });
@@ -90,6 +93,11 @@ ProcessManager = (function() {
                 this.reset();
             });
             $('.metrics').html('');
+        },
+        bulkLoad: function(processList) {
+            $.each(processList, function() {
+                addProcess(this);
+            });
         }
     }
 })();

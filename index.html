@@ -31,7 +31,7 @@
             <div class="row">
                 <div class="span8">
                     <h2>Simulation – <span id="time-passed">idle</span></h2>
-                    <div id="simulation-state" class="well" style="height: 100%;">
+                    <div id="simulation-state" class="well">
                         <h3>Processes</h3>
                         <div id="simulation-process-boxes">
                             <p>No processes yet.</p>
@@ -41,6 +41,9 @@
                             <p>No resources yet.</p>
                         </div>
                         <div style="clear: both;"></div>
+                    </div>
+                    <div id="last-event-string">
+                        <p>Ready.</p>
                     </div>
                 </div>
                 <div class="span4">
@@ -84,7 +87,6 @@
 
         </div> <!-- /container -->
 
-
         <!-- Modal dialog for creating new generic resources -->
         <div class="modal fade" id="custom-resource-modal">
             <div class="modal-header">
@@ -101,6 +103,15 @@
                                 <input type="text" class="input-large" placeholder="e.g. CPU, RAM, etc." id="modal-resource-name">
                                 <p class="help-block">The name/type of the resource; used when other resources refer to it.</p>
                             </div>
+                        </div>
+                        <div class="control-group">
+                            <label class="control-label">Blocks Resources</label>
+                            <div class="controls">
+                                <span class="block-list">
+                                </span>
+                                <a href="#" class="btn blocklist-add"><i class="icon-plus"></i></a>
+                            </div>
+
                         </div>
                     </fieldset>
                 </form>
@@ -216,8 +227,5 @@
         <script src="scripts/process-manager.js"></script>
         <script src="scripts/simulation-manager.js"></script>
         <script src="scripts/control.js"></script>
-        <script>
-            $('.has-tooltip').tooltip();
-        </script>
     </body>
 </html>
