@@ -166,7 +166,7 @@ function Process(needList, arrivalTime, pID, name)
         this.terminated = false;
         this.waitDuration = 0;
         this.firstProgressTime = 0;
-        this.finishTime = 0;
+        this.finishTime = -1;
     }
     
     
@@ -274,7 +274,7 @@ function Process(needList, arrivalTime, pID, name)
         
         var retVal = new Event();  
         if (unmetNeeds.length === 0){ // If we have unmet needs we are blocked and won't be causing any new events.
-            retVal--; // We decrement by one to allow a MAX_INT return to only occur when a process is blocked.
+            retVal.timeTillEvent--; // We decrement by one to allow a MAX_INT return to only occur when a process is blocked.
             for (ii in this.needList){ // If not blocked, the next event is the next incoming request, if any. 
                 var need = this.needList[ii];
                 if (0 < (need.startTime - this.progress) && (need.startTime - this.progress) < retVal.timeTillEvent){ 
@@ -585,83 +585,24 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
     this.processList        = processList        !== undefined ? processList        : [new Process(), new Process()];
     this.resourceList       = resourceList       !== undefined ? resourceList       : [new Resource("CPU")];
     this.terminatedProcList = terminatedProcList !== undefined ? terminatedProcList : []; // Terminated list starts empty.
+    this.waitingProcList    = [];
     this.simulatorClock     = simulatorClock     !== undefined ? simulatorClock     : 0; // Start the simulator wide clock at 0.
-	this.lastEventString	= lastEventString    !== undefined ? lastEventString    : 
-		("Simulator initialized with "+this.processList.length+" processes and "+this.resourceList.length+" resources."); // The default "last event" of a new simulation. 
+    this.lastEventString    = lastEventString    !== undefined ? lastEventString    : 
+        ("Simulator initialized with "+this.processList.length+" processes and "+this.resourceList.length+" resources."); // The default "last event" of a new simulation. 
     
     this.historyBuffer = []; // This cannot be specified at creation.  Always empty.
     this.maxHistorySize = DEFAULT_MAX_HISTORY_SIZE; // Max history size starts at a constant, but can be changed after initialization.  
     
+    //We do an initial sweep through the processList to find any processes that should be on the waitingProcList instead.
+    for (var ii in this.processList){
+        if (this.processList[ii].arrivalTime > this.simulatorClock){
+            // move the procss from processList to waitingProcList. 
+            processArray = this.processList.splice(ii,1);
+            this.waitingProcList.push(processArray[0]);
+        }
+    }
+    
     //print("DEBUG: Simulator initialized with "+this.processList.length+" processes and "+this.resourceList.length+" resources." );
-    
-    //getProcess - gets a process by ID.  
-    this.getProcess = function(pID)
-    {
-        for (ii in this.processList){
-            var proc = this.processList[ii];
-            if (proc.pID === pID){
-                return proc;
-            }
-        }
-        print("WARNING:Process "+pID+" not found.  ");
-        return undefined;
-    }
-    
-    
-    //getResource - gets a resource by name.
-    this.getResource = function(name)
-    {
-        //print("DEBUG:getResource: name=" + name + " list=" + this.resourceList);
-        for (ii in this.resourceList){
-        var res = this.resourceList[ii];
-        if (res.name === name){
-            return res;
-            }
-    }
-    print("WARNING:Resource "+name+" not found.  ");
-    return undefined;
-    }
-    
-    
-    // Returns a dictionary of allocations keyed by process ID.  
-    this.getCurrentAllocations = function()
-    {
-        //4.) Get the current allocations from each resource. Accumulate them in lists by process.
-        var allocDict = {}; 
-        // Start allocDict with an empty list entry for every process (important).  
-        for (ii in this.processList){
-            allocDict[this.processList[ii].pID] = [];
-        }
-        // Get current allocations from each resource and push them on the processes lists.
-        for (ii in this.resourceList){
-            var allocs = this.resourceList[ii].currentAllocations();
-            for (jj in allocs){
-                //print("DEBUG: In getCurrentAllocations: pID="+allocs[jj].pID+".");
-                allocDict[allocs[jj].pID].push(allocs[jj]);
-            }
-        }
-        return allocDict;
-    }
-    
-    
-    // Returns a dictionary of requests keyed by resource name.  
-    this.getCurrentRequests = function()
-    { // Go through each process, ask it it's current requests. Accumulate them by resource.
-        var requestDict = {}; 
-        for (ii in this.processList){ 
-            var proc = this.processList[ii];
-            var requests = proc.currentRequests();
-            for (jj in requests ){ 
-                var res = requests[jj].resName;
-                if (requestDict[res] === undefined){
-                    requestDict[res] = [ requests[jj] ];
-                } else { // If we already have resources for this process, add this one to the list. 
-                    requestDict[res].push( requests[jj] );
-                }
-            }
-        }
-        return requestDict;
-    }
     
     
     // Records a snapshot of the current state onto the historyBuffer. 
@@ -673,7 +614,8 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
                 cloneObject(this.resourceList),      // New resourceList is a close of current one. 
                 cloneObject(this.terminatedProcList),// New terminatedProcList is a close of current one. 
                 this.simulatorClock,                 // Keep the same simulatorClock. 
-				this.lastEventString);				 // Remember the last event description.
+                this.lastEventString);               // Remember the last event description.
+        snapshot.waitingProcList = cloneObject(this.waitingProcList);
         // Push this new snapshop onto the history list.  
         this.historyBuffer.push(snapshot);
         // Make sure the history buffer doesn't get too big. 
@@ -682,7 +624,6 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             print("DEBUG:maxHistorySize reached:"+this.historyBuffer.length+".");
         }
     }
-    
     
     // Reverts to the state in the last saved snapshot in the historyBuffer.
     // 
@@ -702,12 +643,116 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             this.resourceList       = lastSnapshot.resourceList;
             this.terminatedProcList = lastSnapshot.terminatedProcList;          
             this.simulatorClock     = lastSnapshot.simulatorClock;
-			this.lastEventString    = lastSnapshot.lastEventString;
+            this.lastEventString    = lastSnapshot.lastEventString;
+            this.waitingProcList    = lastSnapshot.waitingProcList;
         } else {
             print("ERROR! Something other than a snapshot found in historyBuffer. type="+typeof(lastSnapshot)+".");
         }
     }
     
+    
+    //getProcess - gets a process by ID.  
+    this.getProcess = function(pID)
+    {
+        for (var ii in this.processList){
+            var proc = this.processList[ii];
+            if (proc.pID === pID){
+                return proc;
+            }
+        }
+        //print("WARNING:Process "+pID+" not found.  ");
+        return undefined;
+    }
+    
+    //getResource - gets a resource by name.
+    this.getResource = function(name)
+    {
+        //print("DEBUG:getResource: name=" + name + " list=" + this.resourceList);
+        for (var ii in this.resourceList){
+        var res = this.resourceList[ii];
+        if (res.name === name){
+            return res;
+            }
+    }
+    //print("WARNING:Resource "+name+" not found.  ");
+    return undefined;
+    }
+    
+    
+    // Adds a process to the process list and records an event.
+    this.addProcess = function(process)
+    {
+        if (this.getProcess(process.pID) === undefined){
+            this.recordHistorySnapshot();
+            process.arrivalTime += this.simulatorClock; // Start time is reletive to the time that the process is created.  
+            this.waitingProcList.push(process);
+            this.lastEventString = "Added the new process \""+ process.name +"\" to the simulation.";
+            return true;
+        }
+        else{
+            print("ERROR: Tried to add a process, but a process with the same ID already exists!");
+            return false;
+        }
+    }
+    
+    // Adds a resource to the resource list and records an event.
+    this.addResource = function(resource)
+    {
+            if (this.getResource(resource.name) === undefined){
+            this.recordHistorySnapshot();
+            this.resourceList.push(resource);
+            this.lastEventString = "Added the new resource \""+ resource.name +"\" to the simulation.";
+            return true;
+        }
+        else{
+            print("ERROR: Tried to add a resource, but a resource with the same name already exists!");
+            return false;
+        }
+    }
+    
+    
+    // Returns a dictionary of allocations keyed by process ID.  
+    this.getCurrentAllocations = function()
+    {
+        //4.) Get the current allocations from each resource. Accumulate them in lists by process.
+        var allocDict = {}; 
+        // Start allocDict with an empty list entry for every process (important).  
+        for (var ii in this.processList){
+            allocDict[this.processList[ii].pID] = [];
+        }
+        // Get current allocations from each resource and push them on the processes lists.
+        for (var ii in this.resourceList){
+            var allocs = this.resourceList[ii].currentAllocations();
+            for (var jj in allocs){
+                //print("DEBUG: In getCurrentAllocations: pID="+allocs[jj].pID+".");
+                allocDict[allocs[jj].pID].push(allocs[jj]);
+            }
+        }
+        return allocDict;
+    }
+    
+    
+    // Returns a dictionary of requests keyed by resource name.  
+    this.getCurrentRequests = function()
+    { // Go through each process, ask it it's current requests. Accumulate them by resource.
+        var requestDict = {}; 
+        for (var ii in this.processList){ 
+            var proc = this.processList[ii];
+            var requests = proc.currentRequests();
+            for (var jj in requests ){ 
+                var res = requests[jj].resName;
+                if (requestDict[res] === undefined){
+                    requestDict[res] = [ requests[jj] ];
+                } else { // If we already have resources for this process, add this one to the list. 
+                    requestDict[res].push( requests[jj] );
+                }
+            }
+        }
+        return requestDict;
+    }
+    
+    
+
     
     // The big function that moves time forward to the next event.
     this.simNextEvent = function()
@@ -731,7 +776,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         //2.) Go through each process, ask it it's current needs. Accumulate them by resource.
         var needDict = this.getCurrentRequests();
         //3.) Distribute needs to resources.  
-        for (ii in needDict) {
+        for (var ii in needDict) {
             var res = this.getResource(ii);
             if (res !== undefined) { res.addRequests(needDict[ii]); }
             else { print ("ERROR! cannot find requested resource \""+ii+"\" in this simulation."); }
@@ -744,10 +789,10 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         // We then accumulate any releases.  
         var releaseDict = {};
         var outputFlags = {anyRelease:false, anyRequest:false};
-        for (ii in this.processList) {
+        for (var ii in this.processList) {
             var proc = this.processList[ii];
             var releases = proc.notifyUpcomingAllocations(allocDict[proc.pID], blockWaitData, outputFlags); 
-            for (jj in releases){
+            for (var jj in releases){
                 var resName = releases[jj];
                 //If this is the first release for this resource, then create the list entry for its name.
                 if (releaseDict[resName] === undefined){
@@ -760,7 +805,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         
         if (outputFlags.anyRequest === true || outputFlags.anyRelease === true){
             //6.) Distribute releases to resources.  
-            for (ii in this.resourceList){
+            for (var ii in this.resourceList){
                 var res = this.resourceList[ii];
                 if(releaseDict[res.name] !== undefined){
                     res.removeRequests(releaseDict[res.name]);
@@ -771,7 +816,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             //2 again.) Go through each process, ask it it's current needs. Accumulate them by resource.
             var needDict = this.getCurrentRequests();
             //3 again.) Distribute needs to resources.  
-            for (ii in needDict) {
+            for (var ii in needDict) {
                 var res = this.getResource(ii);
                 if (res !== undefined) { res.addRequests(needDict[ii]); }
                 else { print ("ERROR! Cannot find requested resource \""+ii+"\" in this simulation."); }
@@ -786,7 +831,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         // and resource lists for the shortest getNextEvent. 
         var nextEvent = new Event();
         var activeProcList = [];
-        for (ii in this.processList){ //First check processList
+        for (var ii in this.processList){ //First check processList
             var proc = this.processList[ii];
             // We pass the final allocations to the process so it won't indicate any next event if its about to be blocked.  
             var event = proc.getNextEvent(allocDict[proc.pID]);
@@ -798,7 +843,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
             }
         }
         //Now check resourceList:
-        for (ii in this.resourceList){ 
+        for (var ii in this.resourceList){ 
             // We pass activeProcList to each resource, so the resources can be informed about whether the processes 
             // they've allocated to are making progress. If a resource is allocated to a blocked process it will not 
             // be released and will not cause an event unless the allocation is revoked or preempted. 
@@ -807,6 +852,16 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
                 nextEvent = event;
             }
         }
+        // Now check the waitingProcList.
+        for (var ii in this.waitingProcList){
+            var proc = this.waitingProcList[ii];
+            var event = new Event(proc.arrivalTime - this.simulatorClock, //Time until the process starts. 
+                "Process \""+proc.name+"\" arrived."); // Event description. 
+            if (event.timeTillEvent < nextEvent.timeTillEvent){
+                nextEvent = event;
+            }
+        }
+        
         if (nextEvent.timeTillEvent === MAX_INT){
             print ("Simulator: No more events found! This simulation is over!");
             return 0;
@@ -815,7 +870,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         print("Simulator: Time till next event is "+nextEvent.eventString+" in "+nextEvent.timeTillEvent+" cycles.");
         
         //9.) Resources need to be notified of how much time is passing for this event so they can keep their internal records.  
-        for (ii in this.resourceList){ 
+        for (var ii in this.resourceList){ 
             this.resourceList[ii].notifyResourceClockWrapper(nextEvent.timeTillEvent);
         }
         
@@ -849,7 +904,7 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
     
         //11.) Now we have all the releases in lists by resource name.  Send them out to the resources!
         var anyRelease = false;
-        for (ii in this.resourceList){
+        for (var ii in this.resourceList){
             var res = this.resourceList[ii];
             if(releaseDict[res.name] !== undefined){
                 res.removeRequests(releaseDict[res.name]);
@@ -866,13 +921,23 @@ function Simulator(processList, resourceList, terminatedProcList, simulatorClock
         //}
 
         this.simulatorClock += nextEvent.timeTillEvent; // The simulator-wide clock is incremented by the time-to-next-event.
-		this.lastEventString = nextEvent.eventString;
+        this.lastEventString = nextEvent.eventString;
+        
+        for (var ii in this.waitingProcList){
+            var arrivalTime = this.waitingProcList[ii].arrivalTime - this.simulatorClock;
+            if (arrivalTime <= 0){
+                // The process has arrived. Move it to the active process queue
+                processInArray = this.waitingProcList.splice(ii,1);
+                this.processList.push(processInArray[0]);
+                if (arrivalTime < 0){ print ("ERROR!! Process didn't arrive till after its start time!"); }
+            } 
+        }
+        
         print("Simulator: Exit simNextEvent. event=\""+nextEvent.eventString+"\" time passed="+nextEvent.timeTillEvent+" Clock="+this.simulatorClock+".");
         
-        return nextEvent.eventString; // Doesn't matter much what we return.  
+        return nextEvent.timeTillEvent; // Doesn't matter much what we return.  
     }
     
     
 //End of Class Simulator
 }
-//********** End Primary Base Classes: Process, Resource, Simulator **********//

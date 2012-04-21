@@ -39,6 +39,9 @@ SimulationManager = (function() {
         // We then stick it into hsl(n, 100%, 75%) for something that's hopefully aesthetically pleasing.
         $('#simulation-process-boxes').html('');
         $.each(ProcessManager.processes(), function() {
+            if(this.arrivalTime > simulation.simulatorClock) {
+                return true; // continue.
+            }
             var process = this;
             if(colours[this.pID] === undefined) {
                 colours[this.pID] = Math.random() * 360;
