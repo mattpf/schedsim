@@ -34,7 +34,7 @@
 
 .state-box {
     float: left;
-    width: 100px;
+    width: 150px;
     border: 2px solid black;
     margin: 5px;
     text-align: center;
@@ -55,6 +55,20 @@
 
 }
 
+.progress .text {
+    position: absolute;
+    height: 18px;
+    width: 100%;
+    top: 0px;
+    text-align: center;
+    color: white;
+}
+
+.progress .text span {
+    background-color: rgba(180, 180, 180, 0.5);
+    border-radius: 3px;
+}
+
 /* So that the Resources line doesn't end up floating */
 #simulation-state h3 {
     clear: both;
@@ -62,6 +76,7 @@
 
 #simulation-resource-boxes li.active {
     font-style: italic;
+    font-size: 12pt;
 }
 
 #simulation-resource-boxes li.blocked {

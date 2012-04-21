@@ -7,8 +7,12 @@ SimulationManager = (function() {
         $('#time-passed').html(simulation.simulatorClock + "ms");
 
         // Update the progress bars in the process list
+        var totalWaiting = 0;
         $.each(ProcessManager.processes(), function() {
-            $('#p' + this.pID).find('.bar').css('width', ((this.getRunDuration() / this.getTotalRunDuration()) * 100) + '%')
+            var p = $('#p' + this.pID);
+            p.find('.bar').css('width', ((this.getRunDuration() / this.getTotalRunDuration()) * 100) + '%')
+            p.find('.metrics').html(' – Waited: ' + this.getWaitDuration() + 'ms');
+            totalWaiting += this.getWaitDuration();
         });
 
         // Generate the collection of processes. Each processes has a single colour value associated with it.

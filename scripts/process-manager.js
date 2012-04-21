@@ -54,8 +54,11 @@ ProcessManager = (function() {
 
 
             $('#process-list').append('<li data-pid="'+process.pID+'" id="p'+process.pID+'"><strong>' + process.name + 
-                '</strong> <a href="#" class="close">&times</a>' + 
-                '<div class="progress" style="display: none;"><div class="bar" style="width: 0%;"></div></div></li>')
+                '</strong> <span class="metrics"></span> <a href="#" class="close">&times</a>' + 
+                '<div class="progress" style="display: none;' + /*' position: relative;' +*/ '">' +
+                    '<div class="bar" style="width: 0%;"></div>' +
+                    //'<div class="text"><span></span></div>' +
+                '</div></li>')
 
             $('#custom-process-modal').modal('hide');
         });
