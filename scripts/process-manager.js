@@ -46,16 +46,15 @@ ProcessManager = (function() {
             if(name == "") name = undefined;
             var arrival = parseInt($('#modal-process-arrival').val());
             // NaN ≠ NaN
-            if(arrival != arrival) arrival = undefined;
+            if(arrival != arrival) arrival = 0;
 
             var needs = [];
             $('#modal-process-needs > li').each(function() {
                 var item = $(this);
                 var resource = item.find('.need-resource').val();
-                var begin = parseInt(item.find('.need-begin').val());
-                var duration = parseInt(item.find('.need-duration').val());
-                var quantity = parseInt(item.find('.need-quantity').val());
-                if(quantity != quantity) quantity = 1;
+                var begin = parseInt(item.find('.need-begin').val()) || 0;
+                var duration = parseInt(item.find('.need-duration').val()) || 1000;
+                var quantity = parseInt(item.find('.need-quantity').val()) || 1;
                 var need = new Need(resource, duration, begin, quantity);
                 needs[needs.length] = need;
             });
