@@ -54,8 +54,7 @@
                         </ul>
                         <div class="dropdown btn-add">
                             <a class="btn dropdown-toggle" data-toggle="dropdown" href="#">Add <b class="caret"></b></a>
-                            <ul class="dropdown-menu">
-                                <li><a href="#" id="add-cpu">CPU</a></li>
+                            <ul class="dropdown-menu" id="resource-type-menu">
                                 <li class="divider"></li>
                                 <li><a href="#" id="add-custom-resource">Generic</a></li>
                             </ul>
@@ -100,7 +99,7 @@
                         <div class="control-group">
                             <label class="control-label" for="modal-resource-name">Resource Name</label>
                             <div class="controls">
-                                <input type="text" class="input-large" placeholder="e.g. CPU, RAM, etc." id="modal-resource-name">
+                                <input type="text" class="input-large" placeholder="e.g. NET, LOCK, HAT, etc." id="modal-resource-name">
                                 <p class="help-block">The name/type of the resource; used when other resources refer to it.</p>
                             </div>
                         </div>
@@ -119,48 +118,6 @@
             <div class="modal-footer">
                 <a href="#" class="btn" data-dismiss="modal">Cancel</a>
                 <a href="#" class="btn btn-primary" id="modal-resource-save">Save</a>
-            </div>
-        </div>
-
-        <!-- Modal dialog for creating new RRCPUs -->
-        <div class="modal fade" id="rrcpu-modal">
-            <div class="modal-header">
-                <a class="close" data-dismiss="modal">x</a>
-                <h3>Round Robin CPU</h3>
-            </div>
-            <div class="modal-body">
-                <div id="rrcpu-message"></div>
-                <form class="form-horizontal">
-                    <fieldset>
-                        <div class="control-group">
-                            <label class="control-label" for="rrcpu-name">Resource Name</label>
-                            <div class="controls">
-                                <input type="text" class="input-large" value="CPU" id="rrcpu-name">
-                                <p class="help-block">The name of the Round Robin CPU; used when other resources refer to it.</p>
-                            </div>
-                        </div>
-                        <div class="control-group">
-                            <label class="control-label" for="rrcpu-name">Quantum</label>
-                            <div class="controls">
-                                <div class="input-append">
-                                    <input type="text" class="input-small" value="100" id="rrcpu-quantum" value="50"><span class="add-on">ms</span>
-                                </div>
-                                <p class="help-block">Maximum period to run one process before switching.</p>
-                            </div>
-                        </div>
-                        <div class="control-group">
-                            <label class="control-label" for="rrcpu-name">Cores</label>
-                            <div class="controls">
-                                <input type="text" class="input-small" value="1" id="rrcpu-cores">
-                                <p class="help-block">Maximum simultaneously executing processes.</p>
-                            </div>
-                        </div>
-                    </fieldset>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <a href="#" class="btn" data-dismiss="modal">Cancel</a>
-                <a href="#" class="btn btn-primary" id="rrcpu-save">Save</a>
             </div>
         </div>
 

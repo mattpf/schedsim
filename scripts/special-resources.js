@@ -83,3 +83,12 @@ function RoundRobinCPU(name, quantum, cores)
     RoundRobinCPU.prototype = new Resource();
     //End of Class Simulator
 }
+
+// Add the round-robin CPU to the UI:
+
+$(function() {
+    ResourceManager.addType('RRCPU', 'Round Robin CPU', 'CPU', RoundRobinCPU, [
+        {name: 'Quantum', value: '50', unit: 'ms', help: 'Maximum period to run one process before switching', numeric: true},
+        {name: 'Cores', value: '1', help: 'Numer of processes to execute simultaneously', numeric: true}
+    ]);
+});

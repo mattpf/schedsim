@@ -1,5 +1,6 @@
 ResourceManager = (function() {
     var resources = [];
+    var resource_types = {};
 
     function isDuplicate(name) {
         var duplicated = false;
@@ -29,7 +30,6 @@ ResourceManager = (function() {
         list.each(function() {
             var v = $(this).val();
             if(v != "") {
-                console.log("adding wait for " + v + " on " + resource.name);
                 resource.addBlockWaitFor(v);
             }
         });
@@ -51,22 +51,38 @@ ResourceManager = (function() {
         }
     }
 
-    function saveRRCPU() {
-        var name = $('#rrcpu-name').val();
-        var quantum = parseInt($('#rrcpu-quantum').val()) || undefined;
-        var cores = parseInt($('#rrcpu-cores').val()) || undefined;
-
-        if(name == "") {
-            $('#rrcpu-message').html("<div class='alert alert-error'><strong>Failed.</strong> You must specify a resource name.</div>");
-            return;
+    // Lets us create an object using an array listing its args.
+    var createObject = function() {
+        function dummy() {};
+        return function(obj, args){
+            dummy.prototype = obj.prototype;
+            var instance = new dummy();
+            obj.apply(instance, args);
+            return instance;
         }
+    }();
 
-        var resource = new RoundRobinCPU(name, quantum, cores);
-        if(!addResource(resource)) {
-            $('#rrcpu-message').html("<div class='alert alert-error'><strong>Failed.</strong> There already exists a '" + name + "' resource.</div>");
+    function saveCustomResource(shortname, dialog) {
+        dialog = $(dialog);
+        var resource = resource_types[shortname];
+        var name = dialog.find('.resource-name').val();
+        var args = [name];
+        var i = 0;
+        dialog.find('input.resource-property').each(function() {
+            var prop = resource.properties[i++];
+            var val = $(this).val();
+            if(prop.numeric) {
+                val = parseInt(val) || undefined;
+            }
+            args.push(val);
+        });
+        var res = createObject(resource.object, args);
+
+        if(!addResource(res)) {
+            dialog.find('.message-holder').html("<div class='alert alert-error'><strong>Failed.</strong> There already exists a '" + name + "' resource.</div>");
             return false;
         } else {
-            $('#rrcpu-modal').modal('hide');
+            dialog.modal('hide');
         }
     }
 
@@ -79,9 +95,89 @@ ResourceManager = (function() {
         });
     }
 
+    function createResource(shortname, name, defaultName, object, properties) {
+        resource_types[shortname] = {'shortname': shortname, 'name': name, 'object': object, 'properties': properties};
+        var html = '<div class="modal fade" id="resource-'+shortname+'-modal">' +
+            '<div class="modal-header">' + 
+                '<a class="close" data-dismiss="modal">x</a>' +
+                '<h3>' + name + '</h3>' +
+            '</div>'+
+            '<div class="modal-body">' + 
+                '<div class="message-holder"></div>' + 
+                '<form class="form-horizontal">' +
+                    '<fieldset>' + 
+                        '<div class="control-group">' +
+                            '<label class="control-label">Resource Name</label>' +
+                            '<div class="controls">' +
+                                '<input type="text" class="input-large resource-name" value="' + defaultName + '">' +
+                                '<p class="help-block">The name/type of the resource; used when other resources refer to it.</p>' +
+                            '</div>' + 
+                        '</div>';
+        var i = 0;
+        $.each(properties, function() {
+            html += '   <div class="control-group">' +
+                            '<label class="control-label">' + this.name + '</label>' +
+                            '<div class="controls">' +
+                                (this.unit ? '<div class="input-append">' : '') +
+                                '<input type="text" class="'+ (this.numeric ? 'span1' : 'input-large') +' resource-property" data-propnum="' + i + '"' + 
+                                    (this.value ? ' value="' + this.value + '"' : '') +
+                                    (this.placeholder ? ' placeholder="' + this.placeholder + '"' : '') + '>' +
+                                (this.unit ? '<span class="add-on">' + this.unit + '</span></div>' : '') +
+                                (this.help ? '<p class="help-block">' + this.help + '</p>' : '') +
+                            '</div>' +
+                        '</div>';
+            ++i;
+
+        });
+        html += '       <div class="control-group">' + 
+                            '<label class="control-label">Blocks Resources</label>' +
+                            '<div class="controls">' +
+                                '<span class="block-list">' +
+                                '</span>'+
+                                '<a href="#" class="btn blocklist-add"><i class="icon-plus"></i></a>' +
+                            '</div>' +
+
+                        '</div>' +
+                    '</fieldset>' +
+                '</form>' +
+            '</div>'+ 
+            '<div class="modal-footer">' +
+                '<a href="#" class="btn" data-dismiss="modal">Cancel</a>' +
+                '<a href="#" class="btn btn-primary save-btn">Save</a>' +
+            '</div>' +
+        '</div>';
+
+        var element = $(html);
+
+        element.find('.save-btn').click(function() {
+            saveCustomResource(shortname, element);
+        });
+        element.find('form').submit(function() {
+            return false;
+        });
+
+        element.find('.blocklist-add').click(function() {
+            generateBlockList($(this).parent());
+        })
+
+        $(document).append(element);
+
+        var menuEntry = $('<li><a href="#">' + name + '</a></li>').click(function() {
+            element.find('.message-holder').html('');
+            element.find('.resource-name').val(defaultName);
+            var i = 0;
+            element.find('.resource-property').each(function() {
+                $(this).val(properties[i].value !== undefined ? properties[i].value : '');
+                i++;
+            });
+            element.find('.block-list').html('');
+            element.modal({'backdrop': 'static'});
+        });
+        $('#resource-type-menu').prepend(menuEntry);
+    }
+
     $(function() {
         $('#modal-resource-save').click(saveGenericResource);
-        $('#rrcpu-save').click(saveRRCPU);
         $('.blocklist-add').click(function() {
             generateBlockList($(this).parent());
         })
@@ -107,15 +203,8 @@ ResourceManager = (function() {
         addGeneric: function() {
             $('#modal-resource-name').val('');
             $('#custom-resource-message').html('');
-            generateBlockList($('#custom-resource-modal'));
+            $('#custom-resource-modal .block-list').html('');
             $('#custom-resource-modal').modal({'backdrop': 'static'});
-        },
-        addCPU: function() {
-            $('#rrcpu-name').val('CPU');
-            $('#rrcpu-quantum').val('50');
-            $('#rrcpu-cores').val('1');
-            $('#rrcpu-message').html('');
-            $('#rrcpu-modal').modal({'backdrop': 'static'});
         },
         resources: function() {
             return resources.slice();
@@ -134,6 +223,9 @@ ResourceManager = (function() {
                     alert("Cannot add resource with duplicate name.");
                 }
             });
+        },
+        addType: function(shortname, name, defaultName, object, properties) {
+            createResource(shortname, name, defaultName, object, properties);
         }
     }
 })();
