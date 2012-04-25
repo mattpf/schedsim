@@ -217,6 +217,10 @@ ResourceManager = (function() {
                 this.reset();
             });
         },
+        clear: function() {
+            resources = [];
+            $('#resource-list').html('');
+        },
         bulkLoad: function(resourceList) {
             $.each(resourceList, function() {
                 if(!addResource(this)) {

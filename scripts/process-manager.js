@@ -98,6 +98,10 @@ ProcessManager = (function() {
             $.each(processList, function() {
                 addProcess(this);
             });
+        },
+        clear: function() {
+            processes = [];
+            $('#process-list').html('');
         }
     }
 })();
