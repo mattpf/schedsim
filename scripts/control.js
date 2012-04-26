@@ -6,6 +6,13 @@ $(function() {
     $('#step-simulation').click(SimulationManager.step);
     $('#back-simulation').click(SimulationManager.stepBack);
     $('#stop-simulation').click(SimulationManager.stop);
+    $(document).keypress(function(e) {
+        if(e.which == 110) { // n
+            if(!$(this).is("input") && !$(this).is("textarea")) {
+                SimulationManager.step();
+            }
+        }
+    });
 });
 
 function print(something) {

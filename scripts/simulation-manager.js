@@ -109,6 +109,8 @@ SimulationManager = (function() {
             $('.btn-add').show();
         },
         step: function() {
+            if(!simulation)
+                return;
             updateEarlyState();
             var nextUpdate = simulation.simNextEvent();
             updateLateState();
